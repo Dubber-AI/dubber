@@ -63,5 +63,11 @@ class TTSService:
                 seg.audio_path = returned_path
                 seg.actual_duration_ms = slot_ms
 
+            # Enforce exact duration so segments never overlap
+            final_path = self._temp_dir / f"tts_final_{self._run_id}_{sub.index:06d}.mp3"
+            returned_path = await self._audio.trim(seg.audio_path, final_path, slot_ms)
+            seg.audio_path = returned_path
+            seg.actual_duration_ms = slot_ms
+
             segments.append(seg)
         return segments

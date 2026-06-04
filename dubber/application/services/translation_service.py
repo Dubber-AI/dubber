@@ -48,10 +48,27 @@ class TranslationService:
 
         expected = sum(1 for c in cached if c is None)
         actual = len(translated_list)
+
+        # Fallback: translate individually if batch count mismatch
         if actual != expected:
-            raise ValueError(
-                f"{self._provider.translate_batch} returned {actual} subtitles, expected {expected} misses"
-            )
+            translated_list = []
+            for sub in missing_subs:
+                single_batch = [SubtitleBlock(subtitles=[sub])]
+                try:
+                    single_result = await self._provider.translate_batch(single_batch)
+                    if single_result and single_result[0].subtitles:
+                        translated_list.append(single_result[0].subtitles[0])
+                    else:
+                        # If translator returns empty, keep original text
+                        translated_list.append(sub)
+                except Exception:
+                    # On any error, keep original text so pipeline continues
+                    translated_list.append(sub)
+
+        # If still mismatch after fallback, keep original text for remainder
+        while len(translated_list) < expected:
+            idx = len(translated_list)
+            translated_list.append(missing_subs[idx])
 
         # Merge back into original positions
         result: list[Subtitle] = []

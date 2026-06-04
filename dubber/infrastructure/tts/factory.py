@@ -2,12 +2,14 @@ from dubber.application.ports.tts import TTSProvider
 from dubber.application.dto.config import TTSConfig
 from dubber.infrastructure.tts.edge_tts import EdgeTTSProvider
 from dubber.infrastructure.tts.openai_tts import OpenAITTSProvider
+from dubber.infrastructure.tts.local_tts import LocalTTSProvider
 
 
 class TTSFactory:
     _registry: dict[str, type[TTSProvider]] = {
         "edge": EdgeTTSProvider,
         "openai": OpenAITTSProvider,
+        "local": LocalTTSProvider,
     }
 
     @classmethod

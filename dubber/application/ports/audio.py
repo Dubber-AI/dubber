@@ -28,3 +28,10 @@ class AudioProcessor(ABC):
     async def get_duration(self, path: Path) -> int:
         """Return duration in milliseconds."""
         raise NotImplementedError
+
+    @abstractmethod
+    async def trim(
+        self, input_path: Path, output_path: Path, target_duration_ms: int
+    ) -> Path:
+        """Trim or pad audio to exact target duration in milliseconds."""
+        raise NotImplementedError

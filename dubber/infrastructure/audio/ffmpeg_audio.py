@@ -79,6 +79,27 @@ class FFmpegAudioProcessor(AudioProcessor):
             raise RuntimeError(f"ffmpeg pad failed: {stderr.decode()}")
         return output_path
 
+    async def trim(
+        self, input_path: Path, output_path: Path, target_duration_ms: int
+    ) -> Path:
+        duration_sec = target_duration_ms / 1000.0
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i", str(input_path),
+            "-t", f"{duration_sec:.3f}",
+            str(output_path),
+        ]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"ffmpeg trim failed: {stderr.decode()}")
+        return output_path
+
     async def assemble(
         self, segments: list[TTSSegment], output_path: Path
     ) -> Path:

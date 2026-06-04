@@ -61,6 +61,22 @@ class ProcessCourseUseCase:
         self._progress = progress
         self._semaphore = asyncio.Semaphore(config.processing.workers)
 
+    async def execute_one(
+        self,
+        video: Video,
+        output_dir: Path,
+        mode: OutputMode = OutputMode.REPLACE,
+        stage: str = Stage.FULL,
+    ) -> None:
+        """Process a single video."""
+        if self._progress:
+            self._progress.start(1)
+        try:
+            await self._process_one(video.video_path.parent, video, output_dir, mode, resume=False, stage=stage)
+        finally:
+            if self._progress:
+                self._progress.stop()
+
     async def execute(
         self,
         input_dir: Path,
@@ -115,12 +131,16 @@ class ProcessCourseUseCase:
                 if stage in (Stage.FULL, Stage.TRANSLATE) and translated is None:
                     if self._translator is None:
                         raise RuntimeError("Translator is not available for translate stage")
+                    self._log(f"[translate] Reading {video.subtitle_path.name} ...")
                     job.status = TaskStatus.TRANSLATING
                     job.last_stage = JobStage.TRANSLATING
                     await self._job_storage.upsert(job)
                     subs = self._subtitle_reader.read(video.subtitle_path)
+                    self._log(f"[translate] {len(subs)} subtitle(s) loaded")
                     translated = await self._translator.translate(subs)
+                    self._log(f"[translate] Writing {out_subtitle.name} ...")
                     self._subtitle_reader.write(out_subtitle, translated)
+                    self._log(f"[translate] Done")
 
                 if stage == Stage.TRANSLATE:
                     job.status = TaskStatus.COMPLETED
@@ -134,6 +154,7 @@ class ProcessCourseUseCase:
                     raise FileNotFoundError(f"Missing translated subtitle: {out_subtitle}")
 
                 # Stage: TTS
+                self._log(f"[tts] Starting TTS for {len(translated)} subtitle(s) ...")
                 run_id = str(uuid.uuid4())[:8]
                 temp_dir = out_video.parent / f".dubber_temp_{run_id}"
                 temp_dir.mkdir(parents=True, exist_ok=True)
@@ -149,18 +170,23 @@ class ProcessCourseUseCase:
                     job.last_stage = JobStage.GENERATING_TTS
                     await self._job_storage.upsert(job)
                     segments = await tts_service.generate_segments(translated)
+                    self._log(f"[tts] {len(segments)} segment(s) generated")
 
                     # Stage: assemble audio
+                    self._log(f"[assemble] Assembling audio track ...")
                     job.status = TaskStatus.ASSEMBLING_AUDIO
                     job.last_stage = JobStage.ASSEMBLING_AUDIO
                     await self._job_storage.upsert(job)
                     await self._audio.assemble(segments, out_audio)
+                    self._log(f"[assemble] Audio saved to {out_audio.name}")
 
                     # Stage: mux video
+                    self._log(f"[mux] Muxing video + audio -> {out_video.name} ...")
                     job.status = TaskStatus.MUXING_VIDEO
                     job.last_stage = JobStage.MUXING_VIDEO
                     await self._job_storage.upsert(job)
                     await self._video.mux(video.video_path, out_audio, out_video, mode)
+                    self._log(f"[mux] Done")
 
                     job.status = TaskStatus.COMPLETED
                     job.last_stage = JobStage.COMPLETED
@@ -168,6 +194,7 @@ class ProcessCourseUseCase:
                     self._log(f"[done] {rel}")
                 finally:
                     if temp_dir.exists():
+                        self._log(f"[cleanup] Removing temp dir {temp_dir}")
                         shutil.rmtree(temp_dir)
 
             except Exception as exc:
