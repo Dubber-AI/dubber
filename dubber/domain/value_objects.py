@@ -44,6 +44,7 @@ class TimeCode:
         try:
             h, m, rest = s.split(":")
             sec, ms = rest.split(",")
+            hours = int(h)
             minutes = int(m)
             seconds = int(sec)
             milliseconds = int(ms)
@@ -56,7 +57,7 @@ class TimeCode:
             raise ValueError(f"Invalid seconds in timecode {s!r}: expected 00-59, got {seconds}")
         if not (0 <= milliseconds <= 999):
             raise ValueError(f"Invalid milliseconds in timecode {s!r}: expected 000-999, got {milliseconds}")
-        return cls(int(h), minutes, seconds, milliseconds)
+        return cls(hours, minutes, seconds, milliseconds)
 
 
 @dataclass(frozen=True)

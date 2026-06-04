@@ -37,6 +37,7 @@ class TTSSegment:
     audio_path: Path
     actual_duration_ms: int
     speed_ratio: float = 1.0
+    is_group_end: bool = False
 
 
 @dataclass

@@ -14,31 +14,33 @@ def _save_audio(text: str, output_path: str, voice: str | None, rate: int = 0) -
         pythoncom.CoInitialize()
     except Exception:
         pass
-    import pyttsx3
-    engine = pyttsx3.init()
-    if voice:
-        voices = engine.getProperty("voices")
-        for v in voices:
-            if voice.lower() in v.name.lower() or voice.lower() in v.id.lower():
-                engine.setProperty("voice", v.id)
-                break
-    if rate:
-        engine.setProperty("rate", rate)
-    engine.save_to_file(text, output_path)
-    engine.runAndWait()
-    # Flush remaining COM messages so the file is fully written
     try:
-        import pythoncom
-        for _ in range(20):
-            pythoncom.PumpWaitingMessages()
-            time.sleep(0.05)
-    except Exception:
-        pass
-    try:
-        import pythoncom
-        pythoncom.CoUninitialize()
-    except Exception:
-        pass
+        import pyttsx3
+        engine = pyttsx3.init()
+        if voice:
+            voices = engine.getProperty("voices")
+            for v in voices:
+                if voice.lower() in v.name.lower() or voice.lower() in v.id.lower():
+                    engine.setProperty("voice", v.id)
+                    break
+        if rate:
+            engine.setProperty("rate", rate)
+        engine.save_to_file(text, output_path)
+        engine.runAndWait()
+        # Flush remaining COM messages so the file is fully written
+        try:
+            import pythoncom
+            for _ in range(20):
+                pythoncom.PumpWaitingMessages()
+                time.sleep(0.05)
+        except Exception:
+            pass
+    finally:
+        try:
+            import pythoncom
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
 
 
 def _list_voices() -> list[dict]:
@@ -47,25 +49,27 @@ def _list_voices() -> list[dict]:
         pythoncom.CoInitialize()
     except Exception:
         pass
-    import pyttsx3
-    engine = pyttsx3.init()
-    voices = engine.getProperty("voices")
-    result: list[dict] = []
-    for v in voices:
-        result.append(
-            {
-                "id": v.id,
-                "name": v.name,
-                "language": v.languages[0] if hasattr(v, "languages") and v.languages else "",
-                "gender": v.gender if hasattr(v, "gender") else "",
-            }
-        )
     try:
-        import pythoncom
-        pythoncom.CoUninitialize()
-    except Exception:
-        pass
-    return result
+        import pyttsx3
+        engine = pyttsx3.init()
+        voices = engine.getProperty("voices")
+        result: list[dict] = []
+        for v in voices:
+            result.append(
+                {
+                    "id": v.id,
+                    "name": v.name,
+                    "language": v.languages[0] if hasattr(v, "languages") and v.languages else "",
+                    "gender": v.gender if hasattr(v, "gender") else "",
+                }
+            )
+        return result
+    finally:
+        try:
+            import pythoncom
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
 
 
 class LocalTTSProvider(TTSProvider):

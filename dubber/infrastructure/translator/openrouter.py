@@ -167,7 +167,7 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
         # Try to parse JSON from the response
         try:
             data = json.loads(response_text)
-            if isinstance(data, dict) and "blocks" in data:
+            if isinstance(data, dict) and "blocks" in data and isinstance(data["blocks"], list):
                 return list(data["blocks"])
         except json.JSONDecodeError:
             pass
@@ -178,7 +178,7 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
         if match:
             try:
                 data = json.loads(match.group(1))
-                if isinstance(data, dict) and "blocks" in data:
+                if isinstance(data, dict) and "blocks" in data and isinstance(data["blocks"], list):
                     return list(data["blocks"])
             except json.JSONDecodeError:
                 pass

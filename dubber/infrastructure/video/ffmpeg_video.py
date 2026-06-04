@@ -59,8 +59,7 @@ class FFmpegVideoProcessor(VideoProcessor):
         cmd = [
             "ffprobe",
             "-v", "error",
-            "-show_entries", "format=duration,bit_rate",
-            "-show_entries", "stream=codec_type,width,height,codec_name,r_frame_rate,bit_rate",
+            "-show_entries", "format=duration,bit_rate:stream=codec_type,width,height,codec_name,r_frame_rate,bit_rate",
             "-of", "json",
             str(path),
         ]

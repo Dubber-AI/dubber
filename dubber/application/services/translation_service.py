@@ -62,13 +62,14 @@ class TranslationService:
                         # If translator returns empty, keep original text
                         translated_list.append(sub)
                 except Exception:
-                    # On any error, keep original text so pipeline continues
-                    translated_list.append(sub)
+                    # On any error, mark as failed so pipeline continues
+                    # but does not cache the original text
+                    translated_list.append(None)
 
         # If still mismatch after fallback, keep original text for remainder
         while len(translated_list) < expected:
             idx = len(translated_list)
-            translated_list.append(missing_subs[idx])
+            translated_list.append(None)
 
         # Merge back into original positions
         result: list[Subtitle] = []
@@ -79,18 +80,21 @@ class TranslationService:
             else:
                 trans = translated_list[trans_idx]
                 trans_idx += 1
+                # If translation failed, use original text
+                translated_text = trans.text if trans is not None else sub.text
                 # Update index and timing from original
                 result.append(
                     Subtitle(
                         index=sub.index,
                         start=sub.start,
                         end=sub.end,
-                        text=trans.text,
+                        text=translated_text,
                     )
                 )
-                # Save to cache
-                h = Hash.from_text(sub.text)
-                await self._cache.set_translation(h, trans.text)
+                # Save to cache only for real translations
+                if trans is not None:
+                    h = Hash.from_text(sub.text)
+                    await self._cache.set_translation(h, trans.text)
 
         return result
 

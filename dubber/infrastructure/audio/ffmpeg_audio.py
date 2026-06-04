@@ -86,8 +86,12 @@ class FFmpegAudioProcessor(AudioProcessor):
         cmd = [
             "ffmpeg",
             "-y",
+            "-hide_banner",
+            "-loglevel", "error",
             "-i", str(input_path),
-            "-t", f"{duration_sec:.3f}",
+            "-af", f"apad=whole_dur={duration_sec:.3f},atrim=end={duration_sec:.3f}",
+            "-c:a", "libmp3lame",
+            "-q:a", "2",
             str(output_path),
         ]
         proc = await asyncio.create_subprocess_exec(

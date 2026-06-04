@@ -6,6 +6,7 @@ from pathlib import Path
 from dubber.application.ports.tts import TTSProvider
 from dubber.application.ports.audio import AudioProcessor
 from dubber.application.ports.cache import CacheRepository
+from dubber.application.dto.config import TTSConfig
 from dubber.domain.entities import Subtitle, TTSSegment
 from dubber.domain.value_objects import Hash, TimeCode
 
@@ -18,12 +19,14 @@ class TTSService:
         cache: CacheRepository,
         temp_dir: Path,
         run_id: str = "",
+        tts_config: TTSConfig | None = None,
     ) -> None:
         self._provider = provider
         self._audio = audio
         self._cache = cache
         self._temp_dir = temp_dir
         self._run_id = run_id
+        self._tts_config = tts_config
 
     async def generate_segments(
         self, subtitles: list[Subtitle]
@@ -34,7 +37,10 @@ class TTSService:
         for g_idx, group in enumerate(groups):
             combined_text = " ".join(s.text.strip() for s in group)
             print(f"  [group {g_idx}] {len(group)} subtitle(s): {combined_text[:80]}...")
-            h = Hash.from_text(combined_text)
+            cache_key_text = combined_text
+            if self._tts_config is not None:
+                cache_key_text = f"{combined_text}|{self._tts_config.provider}|{self._tts_config.voice}|{self._tts_config.rate}"
+            h = Hash.from_text(cache_key_text)
             cached_path = await self._cache.get_tts(h)
             if cached_path and cached_path.exists():
                 group_audio = cached_path
@@ -45,10 +51,11 @@ class TTSService:
                 group_duration = await self._audio.get_duration(group_audio)
                 await self._cache.set_tts(h, group_audio)
 
+
             word_counts = [len(s.text.split()) for s in group]
             durations = self._distribute_duration(group_duration, word_counts, min_ms=300)
             offset_ms = 0
-            for sub, sub_duration in zip(group, durations):
+            for sub_idx, (sub, sub_duration) in enumerate(zip(group, durations)):
                 sub_path = self._temp_dir / f"tts_split_{self._run_id}_{sub.index:06d}.mp3"
                 await self._split_audio(group_audio, sub_path, offset_ms, sub_duration)
 
@@ -56,6 +63,7 @@ class TTSService:
                     subtitle=sub,
                     audio_path=sub_path,
                     actual_duration_ms=sub_duration,
+                    is_group_end=(sub_idx == len(group) - 1),
                 )
                 segments.append(seg)
                 offset_ms += sub_duration
@@ -136,8 +144,9 @@ class TTSService:
             return
         current_ms = segments[0].subtitle.start.to_milliseconds() if segments[0].subtitle.start else 0
         for seg in segments:
-            duration_ms = max(seg.actual_duration_ms, gap_ms)
             seg.subtitle.start = TimeCode.from_milliseconds(current_ms)
-            seg.subtitle.end = TimeCode.from_milliseconds(current_ms + duration_ms)
-            current_ms += duration_ms + gap_ms
-            print(f"  [timecode] sub {seg.subtitle.index}: {seg.subtitle.start} -> {seg.subtitle.end} (duration={duration_ms}ms)")
+            seg.subtitle.end = TimeCode.from_milliseconds(current_ms + seg.actual_duration_ms)
+            current_ms += seg.actual_duration_ms
+            if getattr(seg, "is_group_end", False):
+                current_ms += gap_ms
+            print(f"  [timecode] sub {seg.subtitle.index}: {seg.subtitle.start} -> {seg.subtitle.end} (duration={seg.actual_duration_ms}ms)")

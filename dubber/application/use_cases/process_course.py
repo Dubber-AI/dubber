@@ -140,7 +140,7 @@ class ProcessCourseUseCase:
                     translated = await self._translator.translate(subs)
                     self._log(f"[translate] Writing {out_subtitle.name} ...")
                     self._subtitle_reader.write(out_subtitle, translated)
-                    self._log(f"[translate] Done")
+                    self._log("[translate] Done")
 
                 if stage == Stage.TRANSLATE:
                     job.status = TaskStatus.COMPLETED
@@ -166,6 +166,7 @@ class ProcessCourseUseCase:
                         self._cache,
                         temp_dir,
                         run_id=run_id,
+                        tts_config=self._config.tts,
                     )
                     job.status = TaskStatus.GENERATING_TTS
                     job.last_stage = JobStage.GENERATING_TTS
@@ -174,7 +175,7 @@ class ProcessCourseUseCase:
                     self._log(f"[tts] {len(segments)} segment(s) generated")
 
                     # Stage: assemble audio
-                    self._log(f"[assemble] Assembling audio track ...")
+                    self._log("[assemble] Assembling audio track ...")
                     job.status = TaskStatus.ASSEMBLING_AUDIO
                     job.last_stage = JobStage.ASSEMBLING_AUDIO
                     await self._job_storage.upsert(job)
@@ -187,7 +188,7 @@ class ProcessCourseUseCase:
                     job.last_stage = JobStage.MUXING_VIDEO
                     await self._job_storage.upsert(job)
                     await self._video.mux(video.video_path, out_audio, out_video, mode)
-                    self._log(f"[mux] Done")
+                    self._log("[mux] Done")
 
                     job.status = TaskStatus.COMPLETED
                     job.last_stage = JobStage.COMPLETED
@@ -203,6 +204,7 @@ class ProcessCourseUseCase:
                 job.last_stage = str(exc)
                 await self._job_storage.upsert(job)
                 self._log(f"[failed] {rel}: {exc}")
+                raise
             finally:
                 self._advance()
 

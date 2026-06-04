@@ -104,7 +104,8 @@ def process_video(
     config_path: Path | None = typer.Option(None, "--config", "-c"),
 ) -> None:
     """Run the pipeline on the first video found in the given directory."""
-    _ensure_api_key()
+    if stage != "dub":
+        _ensure_api_key()
     config = load_config(config_path)
 
     console.print(f"[cyan]Scanning {input_dir} for videos...[/cyan]")
