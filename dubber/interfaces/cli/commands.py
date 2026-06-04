@@ -75,8 +75,7 @@ def process(
     """Run the full pipeline: translate, TTS, and mux."""
     _ensure_api_key()
     config = load_config(config_path)
-    if output_dir:
-        config.output.directory = output_dir
+    config.output.directory = output_dir or input_dir
     if workers is not None:
         config.processing.workers = workers
 
@@ -88,6 +87,62 @@ def process(
         )
     )
     console.print("[green]Processing complete.[/green]")
+
+
+@app.command()
+def process_video(
+    input_dir: Path = typer.Argument(..., help="Directory to scan for a single video"),
+    output_dir: Path = typer.Option(
+        None, "--output", "-o", help="Output directory (default: same as video)"
+    ),
+    mode: OutputMode = typer.Option(
+        OutputMode.REPLACE, "--mode", help="replace or add_track"
+    ),
+    stage: str = typer.Option(
+        "full", "--stage", help="full, translate, or dub"
+    ),
+    config_path: Path | None = typer.Option(None, "--config", "-c"),
+) -> None:
+    """Run the pipeline on the first video found in the given directory."""
+    _ensure_api_key()
+    config = load_config(config_path)
+
+    console.print(f"[cyan]Scanning {input_dir} for videos...[/cyan]")
+    # Find first video with a subtitle
+    video_path: Path | None = None
+    srt_path: Path | None = None
+    mp4_count = 0
+    for mp4 in sorted(input_dir.rglob("*.mp4")):
+        mp4_count += 1
+        srt = mp4.with_suffix(".en.srt")
+        if not srt.exists():
+            srt = mp4.with_suffix(".srt")
+        console.print(f"[dim]  Found {mp4} | en.srt={mp4.with_suffix('.en.srt').exists()} | srt={mp4.with_suffix('.srt').exists()}[/dim]")
+        if srt.exists():
+            video_path = mp4
+            srt_path = srt
+            break
+
+    console.print(f"[cyan]Scanned {mp4_count} mp4 file(s)[/cyan]")
+    if video_path is None or srt_path is None:
+        console.print(f"[red]No video with subtitle found in {input_dir}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Selected video: {video_path}[/green]")
+    console.print(f"[green]Selected subtitle: {srt_path}[/green]")
+
+    output_dir = output_dir or video_path.parent
+    config.output.directory = output_dir
+
+    from dubber.domain.entities import Video
+    video = Video(video_path=video_path, subtitle_path=srt_path)
+
+    progress = RichProgressTracker(console)
+    use_case = _build_use_case(config, progress, stage=stage)
+    asyncio.run(
+        use_case.execute_one(video, output_dir, mode, stage=stage)
+    )
+    console.print(f"[green]Done: {output_dir / video_path.with_suffix('.ru.mp4').name}[/green]")
 
 
 @app.command()
@@ -103,8 +158,7 @@ def translate(
     """Translate subtitles only (generate .ru.srt files)."""
     _ensure_api_key()
     config = load_config(config_path)
-    if output_dir:
-        config.output.directory = output_dir
+    config.output.directory = output_dir or input_dir
     if workers is not None:
         config.processing.workers = workers
 
@@ -129,8 +183,7 @@ def dub(
 ) -> None:
     """Generate dubbed video from existing .ru.srt files."""
     config = load_config(config_path)
-    if output_dir:
-        config.output.directory = output_dir
+    config.output.directory = output_dir or input_dir
     if workers is not None:
         config.processing.workers = workers
 

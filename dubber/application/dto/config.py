@@ -18,6 +18,7 @@ class TTSConfig(BaseModel):
     provider: str = "edge"
     voice: str = "ru-RU-DmitryNeural"
     max_concurrent: int = 5
+    rate: int = 0  # pyttsx3 words-per-minute; 0 = default
 
 
 class ProcessingConfig(BaseModel):

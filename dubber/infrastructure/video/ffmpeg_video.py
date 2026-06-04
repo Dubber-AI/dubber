@@ -60,7 +60,7 @@ class FFmpegVideoProcessor(VideoProcessor):
             "ffprobe",
             "-v", "error",
             "-show_entries", "format=duration,bit_rate",
-            "-show_entries", "stream=width,height,codec_name,r_frame_rate,bit_rate",
+            "-show_entries", "stream=codec_type,width,height,codec_name,r_frame_rate,bit_rate",
             "-of", "json",
             str(path),
         ]
@@ -92,10 +92,17 @@ class FFmpegVideoProcessor(VideoProcessor):
                 if "codec_name" in stream:
                     result["codec"] = stream["codec_name"]
                 if "r_frame_rate" in stream:
-                    num, den = stream["r_frame_rate"].split("/")
-                    result["fps"] = float(num) / float(den) if float(den) != 0 else 0.0
+                    rate_str = stream["r_frame_rate"]
+                    if "/" not in rate_str:
+                        result["fps"] = 0.0
+                    else:
+                        try:
+                            num, den = rate_str.split("/")
+                            result["fps"] = float(num) / float(den) if float(den) != 0 else 0.0
+                        except ValueError:
+                            result["fps"] = 0.0
                 if "bit_rate" in stream:
-                    result["bit_rate"] = int(stream["bit_rate"])
+                    result["video_bit_rate"] = int(stream["bit_rate"])
                 break
 
         return result

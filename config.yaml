@@ -10,6 +10,10 @@ tts:
   provider: edge
   voice: ru-RU-DmitryNeural
   max_concurrent: 5
+  # provider: local
+  # voice: Microsoft Irina Desktop - Russian
+  # max_concurrent: 2
+  # rate: 240
 
 processing:
   workers: 8
