@@ -142,3 +142,4 @@ dubber_jobs.db
 *.mp3
 .dubber_temp/
 courses/
+output/

@@ -118,7 +118,7 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
         try:
             data = json.loads(response_text)
             if isinstance(data, dict) and "blocks" in data:
-                return list(data["blocks"])[:expected_count]
+                return list(data["blocks"])
         except json.JSONDecodeError:
             pass
 
@@ -129,14 +129,14 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
             try:
                 data = json.loads(match.group(1))
                 if isinstance(data, dict) and "blocks" in data:
-                    return list(data["blocks"])[:expected_count]
+                    return list(data["blocks"])
             except json.JSONDecodeError:
                 pass
 
         # Last resort: split by newlines and take non-empty lines
         lines = [line.strip() for line in response_text.splitlines() if line.strip()]
         if len(lines) >= expected_count:
-            return lines[:expected_count]
+            return lines
 
         # If count mismatch, raise so API/provider drift fails fast
         if len(lines) < expected_count:
