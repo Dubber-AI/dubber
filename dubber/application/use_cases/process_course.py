@@ -134,7 +134,8 @@ class ProcessCourseUseCase:
                     raise FileNotFoundError(f"Missing translated subtitle: {out_subtitle}")
 
                 # Stage: TTS
-                temp_dir = out_video.parent / ".dubber_temp"
+                run_id = str(uuid.uuid4())[:8]
+                temp_dir = out_video.parent / f".dubber_temp_{run_id}"
                 temp_dir.mkdir(parents=True, exist_ok=True)
                 try:
                     tts_service = TTSService(
@@ -142,7 +143,7 @@ class ProcessCourseUseCase:
                         self._audio_processor,
                         self._cache,
                         temp_dir,
-                        run_id=str(uuid.uuid4())[:8],
+                        run_id=run_id,
                     )
                     job.status = TaskStatus.GENERATING_TTS
                     job.last_stage = JobStage.GENERATING_TTS

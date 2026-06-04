@@ -44,7 +44,16 @@ class TimeCode:
         try:
             h, m, rest = s.split(":")
             sec, ms = rest.split(",")
-            return cls(int(h), int(m), int(sec), int(ms))
+            minutes = int(m)
+            seconds = int(sec)
+            milliseconds = int(ms)
+            if not (0 <= minutes <= 59):
+                raise ValueError(f"Invalid minutes in timecode {s!r}: expected 00-59, got {minutes}")
+            if not (0 <= seconds <= 59):
+                raise ValueError(f"Invalid seconds in timecode {s!r}: expected 00-59, got {seconds}")
+            if not (0 <= milliseconds <= 999):
+                raise ValueError(f"Invalid milliseconds in timecode {s!r}: expected 000-999, got {milliseconds}")
+            return cls(int(h), minutes, seconds, milliseconds)
         except ValueError as exc:
             raise ValueError(f"Invalid timecode format: {s!r}. Expected HH:MM:SS,mmm") from exc
 

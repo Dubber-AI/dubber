@@ -1,6 +1,7 @@
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 from dubber.application.ports.video import VideoProcessor
 from dubber.domain.enums import OutputMode
@@ -58,8 +59,8 @@ class FFmpegVideoProcessor(VideoProcessor):
         cmd = [
             "ffprobe",
             "-v", "error",
-            "-show_entries", "format=duration",
-            "-show_entries", "stream=width,height",
+            "-show_entries", "format=duration,bit_rate",
+            "-show_entries", "stream=width,height,codec_name,r_frame_rate,bit_rate",
             "-of", "json",
             str(path),
         ]
@@ -73,4 +74,28 @@ class FFmpegVideoProcessor(VideoProcessor):
             raise RuntimeError(f"ffprobe probe failed on {path}: {_stderr.decode()}")
         if not stdout:
             raise RuntimeError(f"ffprobe probe returned empty stdout for {path}")
-        return json.loads(stdout.decode())
+        data = json.loads(stdout.decode())
+        result: dict[str, Any] = {}
+
+        fmt = data.get("format", {})
+        if "duration" in fmt:
+            result["duration"] = float(fmt["duration"])
+        if "bit_rate" in fmt:
+            result["bit_rate"] = int(fmt["bit_rate"])
+
+        for stream in data.get("streams", []):
+            if stream.get("codec_type") == "video":
+                if "width" in stream:
+                    result["width"] = int(stream["width"])
+                if "height" in stream:
+                    result["height"] = int(stream["height"])
+                if "codec_name" in stream:
+                    result["codec"] = stream["codec_name"]
+                if "r_frame_rate" in stream:
+                    num, den = stream["r_frame_rate"].split("/")
+                    result["fps"] = float(num) / float(den) if float(den) != 0 else 0.0
+                if "bit_rate" in stream:
+                    result["bit_rate"] = int(stream["bit_rate"])
+                break
+
+        return result
