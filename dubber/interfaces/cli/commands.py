@@ -75,8 +75,7 @@ def process(
     """Run the full pipeline: translate, TTS, and mux."""
     _ensure_api_key()
     config = load_config(config_path)
-    if output_dir:
-        config.output.directory = output_dir
+    config.output.directory = output_dir or input_dir
     if workers is not None:
         config.processing.workers = workers
 
@@ -103,8 +102,7 @@ def translate(
     """Translate subtitles only (generate .ru.srt files)."""
     _ensure_api_key()
     config = load_config(config_path)
-    if output_dir:
-        config.output.directory = output_dir
+    config.output.directory = output_dir or input_dir
     if workers is not None:
         config.processing.workers = workers
 
@@ -129,8 +127,7 @@ def dub(
 ) -> None:
     """Generate dubbed video from existing .ru.srt files."""
     config = load_config(config_path)
-    if output_dir:
-        config.output.directory = output_dir
+    config.output.directory = output_dir or input_dir
     if workers is not None:
         config.processing.workers = workers
 
