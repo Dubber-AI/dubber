@@ -36,17 +36,17 @@ class MockCache(CacheRepository):
         self._trans: dict[str, str] = {}
         self._tts: dict[str, str] = {}
 
-    async def get_translation(self, hash) -> str | None:
-        return self._trans.get(hash.value)
+    async def get_translation(self, item_hash) -> str | None:
+        return self._trans.get(item_hash.value)
 
-    async def set_translation(self, hash, text: str) -> None:
-        self._trans[hash.value] = text
+    async def set_translation(self, item_hash, text: str) -> None:
+        self._trans[item_hash.value] = text
 
-    async def get_tts(self, hash) -> str | None:
-        return self._tts.get(hash.value)
+    async def get_tts(self, item_hash) -> str | None:
+        return self._tts.get(item_hash.value)
 
-    async def set_tts(self, hash, path) -> None:
-        self._tts[hash.value] = str(path)
+    async def set_tts(self, item_hash, path) -> None:
+        self._tts[item_hash.value] = str(path)
 
 
 @pytest.fixture

@@ -144,3 +144,4 @@ output/
 *.ru.wav
 *.mp3
 .dubber_temp/
+courses/

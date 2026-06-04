@@ -95,16 +95,16 @@ class MockVideoProcessor(VideoProcessor):
 
 
 class MockCache(CacheRepository):
-    async def get_translation(self, hash) -> str | None:
+    async def get_translation(self, item_hash) -> str | None:
         return None
 
-    async def set_translation(self, hash, text: str) -> None:
+    async def set_translation(self, item_hash, text: str) -> None:
         pass
 
-    async def get_tts(self, hash) -> Path | None:
+    async def get_tts(self, item_hash) -> Path | None:
         return None
 
-    async def set_tts(self, hash, path: Path) -> None:
+    async def set_tts(self, item_hash, path: Path) -> None:
         pass
 
 

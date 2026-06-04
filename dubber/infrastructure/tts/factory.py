@@ -12,6 +12,8 @@ class TTSFactory:
 
     @classmethod
     def create(cls, config: TTSConfig) -> TTSProvider:
+        if config.provider == "openai":
+            raise ValueError("OpenAI TTS provider is not yet implemented")
         provider_cls = cls._registry.get(config.provider)
         if not provider_cls:
             raise ValueError(f"Unknown TTS provider: {config.provider}")

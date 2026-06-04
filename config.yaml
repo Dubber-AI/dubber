@@ -8,7 +8,7 @@ translator:
 
 tts:
   provider: edge
-  voice: ru-RU-SvetlanaNeural
+  voice: ru-RU-DmitryNeural
   max_concurrent: 5
 
 processing:

@@ -16,11 +16,13 @@ class TTSService:
         audio: AudioProcessor,
         cache: CacheRepository,
         temp_dir: Path,
+        run_id: str = "",
     ) -> None:
         self._provider = provider
         self._audio = audio
         self._cache = cache
         self._temp_dir = temp_dir
+        self._run_id = run_id
 
     async def generate_segments(
         self, subtitles: list[Subtitle]
@@ -38,7 +40,7 @@ class TTSService:
                     actual_duration_ms=duration,
                 )
             else:
-                raw_path = self._temp_dir / f"tts_raw_{sub.index:06d}.mp3"
+                raw_path = self._temp_dir / f"tts_raw_{self._run_id}_{sub.index:06d}.mp3"
                 seg = await self._provider.synthesize(sub.text, raw_path)
                 seg.subtitle = sub
                 seg.actual_duration_ms = await self._audio.get_duration(seg.audio_path)
@@ -47,15 +49,15 @@ class TTSService:
             slot_ms = sub.duration_ms
             if seg.actual_duration_ms > slot_ms:
                 ratio = slot_ms / seg.actual_duration_ms
-                stretched_path = self._temp_dir / f"tts_stretched_{sub.index:06d}.mp3"
-                await self._audio.stretch(seg.audio_path, stretched_path, ratio)
-                seg.audio_path = stretched_path
+                stretched_path = self._temp_dir / f"tts_stretched_{self._run_id}_{sub.index:06d}.mp3"
+                returned_path = await self._audio.stretch(seg.audio_path, stretched_path, ratio)
+                seg.audio_path = returned_path
                 seg.actual_duration_ms = slot_ms
                 seg.speed_ratio = ratio
             elif seg.actual_duration_ms < slot_ms:
-                padded_path = self._temp_dir / f"tts_padded_{sub.index:06d}.mp3"
-                await self._audio.pad_silence(seg.audio_path, padded_path, slot_ms)
-                seg.audio_path = padded_path
+                padded_path = self._temp_dir / f"tts_padded_{self._run_id}_{sub.index:06d}.mp3"
+                returned_path = await self._audio.pad_silence(seg.audio_path, padded_path, slot_ms)
+                seg.audio_path = returned_path
                 seg.actual_duration_ms = slot_ms
 
             segments.append(seg)
