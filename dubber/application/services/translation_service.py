@@ -50,7 +50,7 @@ class TranslationService:
         actual = len(translated_list)
         if actual != expected:
             raise ValueError(
-                f"{_provider.translate_batch} returned {actual} subtitles, expected {expected} misses"
+                f"{self._provider.translate_batch} returned {actual} subtitles, expected {expected} misses"
             )
 
         # Merge back into original positions
@@ -78,11 +78,4 @@ class TranslationService:
         return result
 
     def _create_batches(self, subtitles: list[Subtitle]) -> list[SubtitleBlock]:
-        if not subtitles:
-            return []
-
-        blocks: list[SubtitleBlock] = []
-        for i in range(0, len(subtitles), self._batch_size):
-            chunk = subtitles[i : i + self._batch_size]
-            blocks.append(SubtitleBlock(subtitles=chunk))
-        return blocks
+        return [SubtitleBlock(subtitles=[sub]) for sub in subtitles]

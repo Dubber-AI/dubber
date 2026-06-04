@@ -47,6 +47,9 @@ class TTSService:
                 await self._cache.set_tts(h, seg.audio_path)
 
             slot_ms = sub.duration_ms
+            if slot_ms == 0:
+                segments.append(seg)
+                continue
             if seg.actual_duration_ms > slot_ms:
                 ratio = slot_ms / seg.actual_duration_ms
                 stretched_path = self._temp_dir / f"tts_stretched_{self._run_id}_{sub.index:06d}.mp3"

@@ -138,9 +138,6 @@ cython_debug/
 subdub_cache.db
 dubber_cache.db
 dubber_jobs.db
-output/
-*.ru.mp4
-*.ru.srt
 *.ru.wav
 *.mp3
 .dubber_temp/

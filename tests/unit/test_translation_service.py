@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from dubber.application.services.translation_service import TranslationService
 from dubber.application.ports.translator import TranslatorProvider
@@ -34,7 +35,7 @@ class MockTranslatorProvider(TranslatorProvider):
 class MockCache(CacheRepository):
     def __init__(self) -> None:
         self._trans: dict[str, str] = {}
-        self._tts: dict[str, str] = {}
+        self._tts: dict[str, Path] = {}
 
     async def get_translation(self, item_hash) -> str | None:
         return self._trans.get(item_hash.value)
@@ -42,11 +43,11 @@ class MockCache(CacheRepository):
     async def set_translation(self, item_hash, text: str) -> None:
         self._trans[item_hash.value] = text
 
-    async def get_tts(self, item_hash) -> str | None:
+    async def get_tts(self, item_hash) -> Path | None:
         return self._tts.get(item_hash.value)
 
-    async def set_tts(self, item_hash, path) -> None:
-        self._tts[item_hash.value] = str(path)
+    async def set_tts(self, item_hash, path: Path) -> None:
+        self._tts[item_hash.value] = path
 
 
 @pytest.fixture

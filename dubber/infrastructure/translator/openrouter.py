@@ -9,6 +9,10 @@ from dubber.application.ports.translator import TranslatorProvider
 from dubber.application.dto.config import TranslatorConfig
 from dubber.domain.entities import Subtitle, SubtitleBlock
 
+
+class ProviderError(Exception):
+    pass
+
 _SYSTEM_PROMPT = (
     "Ты профессиональный переводчик технических курсов. "
     "Переводи английские субтитры на русский язык.\n"
@@ -79,9 +83,18 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
         )
         translated_texts = self._extract_translated(response_text, len(blocks))
 
+        if len(translated_texts) != len(blocks):
+            raise ProviderError(
+                f"Translated blocks count mismatch: expected {len(blocks)}, got {len(translated_texts)}"
+            )
+
         result: list[SubtitleBlock] = []
-        for block, trans_text in zip(blocks, translated_texts, strict=False):
-            per_sub_texts = trans_text.split("\n")
+        for block, trans_text in zip(blocks, translated_texts, strict=True):
+            per_sub_texts = [trans_text]
+            if len(per_sub_texts) != len(block.subtitles):
+                raise ProviderError(
+                    f"Subtitle count mismatch in block: expected {len(block.subtitles)}, got {len(per_sub_texts)}"
+                )
             translated_subs = [
                 Subtitle(
                     index=sub.index,
@@ -89,7 +102,7 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
                     end=sub.end,
                     text=sub_text,
                 )
-                for sub, sub_text in zip(block.subtitles, per_sub_texts, strict=False)
+                for sub, sub_text in zip(block.subtitles, per_sub_texts, strict=True)
             ]
             result.append(SubtitleBlock(translated_subs))
         return result
@@ -127,8 +140,8 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
 
         # If count mismatch, raise so API/provider drift fails fast
         if len(lines) < expected_count:
-            raise ValueError(
-                f"_provider.translate_batch returned {len(lines)} blocks, expected {expected_count}. "
+            raise ProviderError(
+                f"translate_batch returned {len(lines)} blocks, expected {expected_count}. "
                 f"translated_list length: {len(lines)}, expected misses: {expected_count}"
             )
         return lines
