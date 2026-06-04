@@ -18,7 +18,8 @@ class Subtitle:
     def duration_ms(self) -> int:
         if self.start is None or self.end is None:
             return 0
-        return self.end.to_milliseconds() - self.start.to_milliseconds()
+        diff = self.end.to_milliseconds() - self.start.to_milliseconds()
+        return max(0, diff)
 
 
 @dataclass

@@ -13,4 +13,11 @@ class TranslatorProvider(ABC):
 
     @abstractmethod
     async def healthcheck(self) -> bool:
+        """Verify the translator service is reachable and functioning.
+
+        Returns:
+            True if the service is healthy and ready to translate, False otherwise.
+        Implementations may perform a lightweight probe and should not raise on failure;
+            instead return False so callers can decide how to proceed.
+        """
         raise NotImplementedError

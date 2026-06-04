@@ -46,6 +46,13 @@ class TranslationService:
         for block in translated_blocks:
             translated_list.extend(block.subtitles)
 
+        expected = sum(1 for c in cached if c is None)
+        actual = len(translated_list)
+        if actual != expected:
+            raise ValueError(
+                f"{_provider.translate_batch} returned {actual} subtitles, expected {expected} misses"
+            )
+
         # Merge back into original positions
         result: list[Subtitle] = []
         trans_idx = 0
@@ -77,6 +84,5 @@ class TranslationService:
         blocks: list[SubtitleBlock] = []
         for i in range(0, len(subtitles), self._batch_size):
             chunk = subtitles[i : i + self._batch_size]
-            for sub in chunk:
-                blocks.append(SubtitleBlock(subtitles=[sub]))
+            blocks.append(SubtitleBlock(subtitles=chunk))
         return blocks

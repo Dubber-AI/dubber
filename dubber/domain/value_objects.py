@@ -37,10 +37,16 @@ class TimeCode:
 
     @classmethod
     def from_string(cls, s: str) -> TimeCode:
-        # Expected format: 00:00:00,000
-        h, m, rest = s.split(":")
-        sec, ms = rest.split(",")
-        return cls(int(h), int(m), int(sec), int(ms))
+        import re
+
+        if not re.match(r"^\d{2}:\d{2}:\d{2},\d{3}$", s):
+            raise ValueError(f"Invalid timecode format: {s!r}. Expected HH:MM:SS,mmm")
+        try:
+            h, m, rest = s.split(":")
+            sec, ms = rest.split(",")
+            return cls(int(h), int(m), int(sec), int(ms))
+        except ValueError as exc:
+            raise ValueError(f"Invalid timecode format: {s!r}. Expected HH:MM:SS,mmm") from exc
 
 
 @dataclass(frozen=True)

@@ -20,10 +20,16 @@ class FFmpegAudioProcessor(AudioProcessor):
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, _stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"ffprobe failed on {path}: {_stderr.decode()}")
+        if not stdout:
+            raise RuntimeError(f"ffprobe returned empty stdout for {path}")
         duration_s = float(stdout.decode().strip())
         return int(duration_s * 1000)
 
     async def stretch(self, input_path: Path, output_path: Path, ratio: float) -> Path:
+        if ratio <= 0:
+            raise ValueError(f"stretch ratio must be positive, got {ratio}")
         # Clamp atempo to ffmpeg valid range [0.5, 2.0]; chain if needed
         atempo = ratio
         filters = []
@@ -91,7 +97,11 @@ class FFmpegAudioProcessor(AudioProcessor):
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.PIPE,
             )
-            await proc.communicate()
+            _stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                if output_path.exists():
+                    output_path.unlink()
+                raise RuntimeError(f"ffmpeg anullsrc failed: {stderr.decode()}")
             return output_path
 
         # Build a complex filtergraph that places each segment at its correct time

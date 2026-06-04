@@ -30,8 +30,12 @@ def _ensure_api_key() -> None:
         raise typer.Exit(1)
 
 
-def _build_use_case(config: SubDubConfig, progress: RichProgressTracker | None = None) -> ProcessCourseUseCase:
-    translator = TranslatorFactory.create(config.translator)
+def _build_use_case(
+    config: SubDubConfig, progress: RichProgressTracker | None = None, stage: str = "full"
+) -> ProcessCourseUseCase:
+    translator = (
+        TranslatorFactory.create(config.translator) if stage != "dub" else None
+    )
     tts = TTSFactory.create(config.tts)
     cache = SQLiteCacheRepository(config.cache)
     subtitle_reader = PySRTSubtitleReader()
@@ -77,7 +81,7 @@ def process(
         config.processing.workers = workers
 
     progress = RichProgressTracker(console)
-    use_case = _build_use_case(config, progress)
+    use_case = _build_use_case(config, progress, stage="full")
     asyncio.run(
         use_case.execute(
             input_dir, config.output.directory, mode, resume, stage="full"
@@ -105,7 +109,7 @@ def translate(
         config.processing.workers = workers
 
     progress = RichProgressTracker(console)
-    use_case = _build_use_case(config, progress)
+    use_case = _build_use_case(config, progress, stage="translate")
     asyncio.run(
         use_case.execute(
             input_dir, config.output.directory, OutputMode.REPLACE, resume, stage="translate"
@@ -131,7 +135,7 @@ def dub(
         config.processing.workers = workers
 
     progress = RichProgressTracker(console)
-    use_case = _build_use_case(config, progress)
+    use_case = _build_use_case(config, progress, stage="dub")
     asyncio.run(
         use_case.execute(
             input_dir, config.output.directory, mode, resume, stage="dub"
@@ -141,9 +145,7 @@ def dub(
 
 
 @app.command()
-def status(
-    config_path: Path | None = typer.Option(None, "--config", "-c"),
-) -> None:
+def status() -> None:
     """Show processing status from job storage."""
     job_storage = JobStorage()
     # Quick scan is not trivial without walking DB; for now just print DB path

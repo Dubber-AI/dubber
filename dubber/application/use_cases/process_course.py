@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
+import uuid
 from pathlib import Path
 
 from dubber.application.dto.config import SubDubConfig
@@ -26,11 +28,19 @@ class Stage(str):
     DUB = "dub"
 
 
+class JobStage:
+    TRANSLATING = "translating"
+    GENERATING_TTS = "generating_tts"
+    ASSEMBLING_AUDIO = "assembling_audio"
+    MUXING_VIDEO = "muxing_video"
+    COMPLETED = "completed"
+
+
 class ProcessCourseUseCase:
     def __init__(
         self,
         config: SubDubConfig,
-        translator: TranslatorProvider,
+        translator: TranslatorProvider | None,
         tts: TTSProvider,
         subtitle_reader: SubtitleReader,
         audio_processor: AudioProcessor,
@@ -40,7 +50,7 @@ class ProcessCourseUseCase:
         progress: ProgressReporter | None = None,
     ) -> None:
         self._config = config
-        self._translator = TranslationService(translator, cache, config)
+        self._translator = TranslationService(translator, cache, config) if translator else None
         self._tts = tts
         self._subtitle_reader = subtitle_reader
         self._audio_processor = audio_processor
@@ -103,59 +113,66 @@ class ProcessCourseUseCase:
 
                 # Stage: translate
                 if stage in (Stage.FULL, Stage.TRANSLATE) and translated is None:
+                    if self._translator is None:
+                        raise RuntimeError("Translator is not available for translate stage")
                     job.status = TaskStatus.TRANSLATING
-                    job.last_stage = "translating"
-                    self._job_storage.upsert(job)
+                    job.last_stage = JobStage.TRANSLATING
+                    await self._job_storage.upsert(job)
                     subs = self._subtitle_reader.read(video.subtitle_path)
                     translated = await self._translator.translate(subs)
                     self._subtitle_reader.write(out_subtitle, translated)
 
                 if stage == Stage.TRANSLATE:
                     job.status = TaskStatus.COMPLETED
-                    job.last_stage = "completed"
-                    self._job_storage.upsert(job)
+                    job.last_stage = JobStage.COMPLETED
+                    await self._job_storage.upsert(job)
                     self._log(f"[done translate] {rel}")
                     self._advance()
                     return
 
                 if translated is None:
-                    if out_subtitle.exists():
-                        translated = self._subtitle_reader.read(out_subtitle)
-                    else:
-                        raise FileNotFoundError(f"Missing translated subtitle: {out_subtitle}")
+                    raise FileNotFoundError(f"Missing translated subtitle: {out_subtitle}")
 
                 # Stage: TTS
                 temp_dir = out_video.parent / ".dubber_temp"
                 temp_dir.mkdir(parents=True, exist_ok=True)
-                tts_service = TTSService(
-                    self._tts, self._audio_processor, self._cache, temp_dir
-                )
-                job.status = TaskStatus.GENERATING_TTS
-                job.last_stage = "generating_tts"
-                self._job_storage.upsert(job)
-                segments = await tts_service.generate_segments(translated)
+                try:
+                    tts_service = TTSService(
+                        self._tts,
+                        self._audio_processor,
+                        self._cache,
+                        temp_dir,
+                        run_id=str(uuid.uuid4())[:8],
+                    )
+                    job.status = TaskStatus.GENERATING_TTS
+                    job.last_stage = JobStage.GENERATING_TTS
+                    await self._job_storage.upsert(job)
+                    segments = await tts_service.generate_segments(translated)
 
-                # Stage: assemble audio
-                job.status = TaskStatus.ASSEMBLING_AUDIO
-                job.last_stage = "assembling_audio"
-                self._job_storage.upsert(job)
-                await self._audio.assemble(segments, out_audio)
+                    # Stage: assemble audio
+                    job.status = TaskStatus.ASSEMBLING_AUDIO
+                    job.last_stage = JobStage.ASSEMBLING_AUDIO
+                    await self._job_storage.upsert(job)
+                    await self._audio.assemble(segments, out_audio)
 
-                # Stage: mux video
-                job.status = TaskStatus.MUXING_VIDEO
-                job.last_stage = "muxing_video"
-                self._job_storage.upsert(job)
-                await self._video.mux(video.video_path, out_audio, out_video, mode)
+                    # Stage: mux video
+                    job.status = TaskStatus.MUXING_VIDEO
+                    job.last_stage = JobStage.MUXING_VIDEO
+                    await self._job_storage.upsert(job)
+                    await self._video.mux(video.video_path, out_audio, out_video, mode)
 
-                job.status = TaskStatus.COMPLETED
-                job.last_stage = "completed"
-                self._job_storage.upsert(job)
-                self._log(f"[done] {rel}")
+                    job.status = TaskStatus.COMPLETED
+                    job.last_stage = JobStage.COMPLETED
+                    await self._job_storage.upsert(job)
+                    self._log(f"[done] {rel}")
+                finally:
+                    if temp_dir.exists():
+                        shutil.rmtree(temp_dir)
 
             except Exception as exc:
                 job.status = TaskStatus.FAILED
                 job.last_stage = str(exc)
-                self._job_storage.upsert(job)
+                await self._job_storage.upsert(job)
                 self._log(f"[failed] {rel}: {exc}")
             finally:
                 self._advance()
@@ -183,8 +200,6 @@ class ProcessCourseUseCase:
         videos: list[Video] = []
         for mp4 in sorted(input_dir.rglob("*.mp4")):
             srt = mp4.with_suffix(".en.srt")
-            if not srt.exists():
-                srt = mp4.parent / (mp4.stem + ".en.srt")
             if srt.exists():
                 videos.append(Video(video_path=mp4, subtitle_path=srt))
             else:

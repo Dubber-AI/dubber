@@ -69,4 +69,8 @@ class FFmpegVideoProcessor(VideoProcessor):
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, _stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"ffprobe probe failed on {path}: {_stderr.decode()}")
+        if not stdout:
+            raise RuntimeError(f"ffprobe probe returned empty stdout for {path}")
         return json.loads(stdout.decode())

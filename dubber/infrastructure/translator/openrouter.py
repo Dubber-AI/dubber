@@ -42,6 +42,8 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
     def __init__(self, config: TranslatorConfig) -> None:
         self._config = config
         api_key = os.getenv("OPENROUTER_API_KEY", "")
+        if not api_key:
+            raise ValueError("OPENROUTER_API_KEY environment variable is not set")
         self._client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
@@ -79,14 +81,15 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
 
         result: list[SubtitleBlock] = []
         for block, trans_text in zip(blocks, translated_texts, strict=False):
+            per_sub_texts = trans_text.split("\n")
             translated_subs = [
                 Subtitle(
                     index=sub.index,
                     start=sub.start,
                     end=sub.end,
-                    text=trans_text,
+                    text=sub_text,
                 )
-                for sub in block.subtitles
+                for sub, sub_text in zip(block.subtitles, per_sub_texts, strict=False)
             ]
             result.append(SubtitleBlock(translated_subs))
         return result
@@ -122,8 +125,13 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
         if len(lines) >= expected_count:
             return lines[:expected_count]
 
-        # If count mismatch, pad with original texts (should not happen)
-        return lines + [""] * (expected_count - len(lines))
+        # If count mismatch, raise so API/provider drift fails fast
+        if len(lines) < expected_count:
+            raise ValueError(
+                f"_provider.translate_batch returned {len(lines)} blocks, expected {expected_count}. "
+                f"translated_list length: {len(lines)}, expected misses: {expected_count}"
+            )
+        return lines
 
     async def _call_with_retry(self, messages: list[dict[str, Any]]) -> str:
         for attempt in range(self._config.max_retries):

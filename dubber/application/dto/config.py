@@ -2,6 +2,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
 
+from dubber.domain.enums import OutputMode
+
 
 class TranslatorConfig(BaseModel):
     provider: str = "openrouter"
@@ -14,13 +16,13 @@ class TranslatorConfig(BaseModel):
 
 class TTSConfig(BaseModel):
     provider: str = "edge"
-    voice: str = "ru-RU-SvetlanaNeural"
+    voice: str = "ru-RU-DmitryNeural"
     max_concurrent: int = 5
 
 
 class ProcessingConfig(BaseModel):
     workers: int = 8
-    output_mode: str = "replace"
+    output_mode: OutputMode = OutputMode.REPLACE
 
 
 class OutputConfig(BaseModel):

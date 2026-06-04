@@ -1,4 +1,8 @@
+from dotenv import load_dotenv
+
 from dubber.interfaces.cli.commands import app
+
+load_dotenv()
 
 
 def main() -> None:

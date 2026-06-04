@@ -10,7 +10,11 @@ from dubber.domain.value_objects import TimeCode
 
 
 class MockTTSProvider(TTSProvider):
+    def __init__(self) -> None:
+        self.calls = 0
+
     async def synthesize(self, text: str, output_path: Path) -> TTSSegment:
+        self.calls += 1
         output_path.write_text("fake audio")
         return TTSSegment(
             subtitle=Subtitle(index=0, start=None, end=None, text=text),
@@ -46,17 +50,17 @@ class MockCache(CacheRepository):
     def __init__(self) -> None:
         self._cache: dict[str, Path] = {}
 
-    async def get_translation(self, hash) -> str | None:
+    async def get_translation(self, item_hash) -> str | None:
         return None
 
-    async def set_translation(self, hash, text: str) -> None:
+    async def set_translation(self, item_hash, text: str) -> None:
         pass
 
-    async def get_tts(self, hash) -> Path | None:
-        return self._cache.get(hash.value)
+    async def get_tts(self, item_hash) -> Path | None:
+        return self._cache.get(item_hash.value)
 
-    async def set_tts(self, hash, path: Path) -> None:
-        self._cache[hash.value] = path
+    async def set_tts(self, item_hash, path: Path) -> None:
+        self._cache[item_hash.value] = path
 
 
 @pytest.fixture
@@ -91,3 +95,4 @@ async def test_generate_segments_with_cache(service: TTSService, tmp_path: Path)
     # Second call should reuse cache
     segments2 = await service.generate_segments(subs)
     assert segments2[0].audio_path == cached_path
+    assert service._provider.calls == 1
