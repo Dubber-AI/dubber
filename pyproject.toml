@@ -1,0 +1,46 @@
+[project]
+name = "dubber"
+version = "1.0.0"
+description = "Production-ready video dubbing pipeline: translate subtitles, generate TTS, and mux into video."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.12.5",
+    "typer>=0.24.1",
+    "rich>=14.3.3",
+    "pysrt>=1.1.2",
+    "edge-tts>=7.2.8",
+    "openai>=2.41.0",
+    "httpx>=0.28.1",
+    "aiofiles>=25.1.0",
+    "pyyaml>=6.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.15.15",
+    "mypy>=2.1.0",
+]
+
+[project.scripts]
+dubber = "dubber.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
