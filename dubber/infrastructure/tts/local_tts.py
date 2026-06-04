@@ -7,7 +7,7 @@ from dubber.application.dto.config import TTSConfig
 from dubber.domain.entities import TTSSegment, Subtitle
 
 
-def _save_audio(text: str, output_path: str, voice: str | None) -> None:
+def _save_audio(text: str, output_path: str, voice: str | None, rate: int = 0) -> None:
     import time
     try:
         import pythoncom
@@ -22,6 +22,8 @@ def _save_audio(text: str, output_path: str, voice: str | None) -> None:
             if voice.lower() in v.name.lower() or voice.lower() in v.id.lower():
                 engine.setProperty("voice", v.id)
                 break
+    if rate:
+        engine.setProperty("rate", rate)
     engine.save_to_file(text, output_path)
     engine.runAndWait()
     # Flush remaining COM messages so the file is fully written
@@ -87,7 +89,7 @@ class LocalTTSProvider(TTSProvider):
         async with self._semaphore:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(
-                None, _save_audio, text, str(output_path), self._config.voice
+                None, _save_audio, text, str(output_path), self._config.voice, self._config.rate
             )
             return TTSSegment(
                 subtitle=Subtitle(index=0, start=None, end=None, text=text),

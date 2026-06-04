@@ -114,7 +114,7 @@ class ProcessCourseUseCase:
             rel = video.video_path.relative_to(input_dir)
             out_video = output_dir / rel.with_suffix(".ru.mp4")
             out_subtitle = out_video.with_suffix(".srt")
-            out_audio = out_video.with_suffix(".wav")
+            # out_audio will be placed in temp_dir and cleaned up after muxing
 
             if resume and self._should_skip(out_video, stage):
                 self._log(f"[skip] {rel}")
@@ -158,6 +158,7 @@ class ProcessCourseUseCase:
                 run_id = str(uuid.uuid4())[:8]
                 temp_dir = out_video.parent / f".dubber_temp_{run_id}"
                 temp_dir.mkdir(parents=True, exist_ok=True)
+                out_audio = temp_dir / "assembled.wav"
                 try:
                     tts_service = TTSService(
                         self._tts,
