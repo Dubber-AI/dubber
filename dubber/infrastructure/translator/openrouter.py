@@ -121,9 +121,46 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
         if not blocks:
             return []
 
+        # Split into sub-batches to avoid exceeding model token limits
+        batch_size = self._config.batch_size
+        sub_batches = [
+            blocks[i : i + batch_size] for i in range(0, len(blocks), batch_size)
+        ]
+
+        result: list[SubtitleBlock] = []
+        for sub_batch in sub_batches:
+            translated = await self._translate_sub_batch_safe(sub_batch)
+            result.extend(translated)
+        return result
+
+    async def _translate_sub_batch_safe(
+        self, blocks: list[SubtitleBlock], _depth: int = 0
+    ) -> list[SubtitleBlock]:
+        """Translate a sub-batch with adaptive splitting on count mismatch.
+
+        If the model returns fewer blocks than expected, split the batch in half
+        and retry each half recursively. Stops splitting at single-block level.
+        """
+        try:
+            return await self._translate_sub_batch(blocks)
+        except ProviderError:
+            if len(blocks) <= 1:
+                raise
+            if _depth > 5:
+                raise
+
+            mid = len(blocks) // 2
+            left = await self._translate_sub_batch_safe(blocks[:mid], _depth + 1)
+            right = await self._translate_sub_batch_safe(blocks[mid:], _depth + 1)
+            return left + right
+
+    async def _translate_sub_batch(
+        self, blocks: list[SubtitleBlock]
+    ) -> list[SubtitleBlock]:
+        import json
+
         texts = [self._block_to_text(b) for b in blocks]
         payload = {"blocks": texts}
-        import json
 
         response_text = await self._call_with_retry(
             messages=[
@@ -204,7 +241,7 @@ class OpenRouterTranslatorProvider(TranslatorProvider):
                         model=self._config.model,
                         messages=messages,  # type: ignore[arg-type]
                         temperature=0.3,
-                        max_tokens=4096,
+                        max_tokens=16384,
                     )
                     content = response.choices[0].message.content or ""
                     return content.strip()

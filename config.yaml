@@ -1,7 +1,7 @@
 translator:
   provider: openrouter
   model: openai/gpt-oss-120b:free
-  batch_size: 50
+  batch_size: 25
   max_retries: 5
   base_delay: 1.0
   timeout: 120

@@ -8,7 +8,7 @@ from dubber.domain.enums import OutputMode
 class TranslatorConfig(BaseModel):
     provider: str = "openrouter"
     model: str = "openai/gpt-oss-120b:free"
-    batch_size: int = 50
+    batch_size: int = 25
     max_retries: int = 5
     base_delay: float = 1.0
     timeout: int = 120
