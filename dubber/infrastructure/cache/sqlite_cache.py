@@ -11,6 +11,7 @@ class SQLiteCacheRepository(CacheRepository):
     def __init__(self, config: CacheConfig) -> None:
         self._enabled = config.enabled
         self._db_path = config.db_path
+        self._write_lock = asyncio.Lock()
         if self._enabled:
             self._init_db()
 
@@ -47,8 +48,8 @@ class SQLiteCacheRepository(CacheRepository):
             return None
 
         def _fetch():
-            with sqlite3.connect(self._db_path, timeout=10.0) as conn:
-                conn.execute("PRAGMA busy_timeout=5000")
+            with sqlite3.connect(self._db_path, timeout=30.0) as conn:
+                conn.execute("PRAGMA busy_timeout=10000")
                 row = conn.execute(
                     "SELECT translated_text FROM translations WHERE hash = ?",
                     (item_hash.value,),
@@ -61,24 +62,25 @@ class SQLiteCacheRepository(CacheRepository):
         if not self._enabled:
             return
 
-        def _upsert():
-            with sqlite3.connect(self._db_path, timeout=10.0) as conn:
-                conn.execute("PRAGMA busy_timeout=5000")
-                conn.execute(
-                    "INSERT OR REPLACE INTO translations (hash, source_text, translated_text) VALUES (?, ?, ?)",
-                    (item_hash.value, "", text),
-                )
-                conn.commit()
+        async with self._write_lock:
+            def _upsert():
+                with sqlite3.connect(self._db_path, timeout=30.0) as conn:
+                    conn.execute("PRAGMA busy_timeout=10000")
+                    conn.execute(
+                        "INSERT OR REPLACE INTO translations (hash, source_text, translated_text) VALUES (?, ?, ?)",
+                        (item_hash.value, "", text),
+                    )
+                    conn.commit()
 
-        await asyncio.to_thread(_upsert)
+            await asyncio.to_thread(_upsert)
 
     async def get_tts(self, item_hash: Hash) -> Path | None:
         if not self._enabled:
             return None
 
         def _fetch():
-            with sqlite3.connect(self._db_path, timeout=10.0) as conn:
-                conn.execute("PRAGMA busy_timeout=5000")
+            with sqlite3.connect(self._db_path, timeout=30.0) as conn:
+                conn.execute("PRAGMA busy_timeout=10000")
                 row = conn.execute(
                     "SELECT audio_path FROM tts_cache WHERE hash = ?",
                     (item_hash.value,),
@@ -91,13 +93,14 @@ class SQLiteCacheRepository(CacheRepository):
         if not self._enabled:
             return
 
-        def _upsert():
-            with sqlite3.connect(self._db_path, timeout=10.0) as conn:
-                conn.execute("PRAGMA busy_timeout=5000")
-                conn.execute(
-                    "INSERT OR REPLACE INTO tts_cache (hash, text, audio_path) VALUES (?, ?, ?)",
-                    (item_hash.value, "", str(path)),
-                )
-                conn.commit()
+        async with self._write_lock:
+            def _upsert():
+                with sqlite3.connect(self._db_path, timeout=30.0) as conn:
+                    conn.execute("PRAGMA busy_timeout=10000")
+                    conn.execute(
+                        "INSERT OR REPLACE INTO tts_cache (hash, text, audio_path) VALUES (?, ?, ?)",
+                        (item_hash.value, "", str(path)),
+                    )
+                    conn.commit()
 
-        await asyncio.to_thread(_upsert)
+            await asyncio.to_thread(_upsert)
